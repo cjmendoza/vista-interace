@@ -37,7 +37,7 @@ class Client
         #wait to see if there are any results
         puts "Looking for results for #{RSLTS_TIMEOUT} seconds..."
         receive_results unless results
-        #sleep @send_min.to_i * 60
+              #sleep @send_min.to_i * 60
       end
     end
   ensure
@@ -96,19 +96,20 @@ class Client
         puts "Client re-send #{re_send} - read = #{read} size: #{read.length}" if re_send > 0
         @sock.puts(out)
         puts "Client sent #{out.length} #{Time.new.strftime("%S%L")}"
-        begin
-          loop do
-            Timeout::timeout(ACK_TIMEOUT) do
-              read = @sock.recv(2048)
-            end
+
+        loop do
+          ready = IO.select([@sock], nil, nil, ACK_TIMEOUT)
+          if ready
+            read = @sock.recv(2048)
             puts "Client get #{read.length} #{Time.new.strftime("%S%L")}"
             #return result to let know it was just processed
             return receive_results(read) if read.index('OBX')
             break if read.length > 1
+          else
+            puts "No server response! Timed out after #{ACK_TIMEOUT} secs"
           end
-        rescue Timeout::Error
-          puts "No server response! Timed out after #{ACK_TIMEOUT} secs"
         end
+
         re_send += 1
       end
     rescue
@@ -122,8 +123,12 @@ class Client
     loop do
       begin
         unless message
-          Timeout::timeout(RSLTS_TIMEOUT) do
+          ready = IO.select([@sock], nil, nil, RSLTS_TIMEOUT)
+          if ready
             message = @sock.recv(2048)
+          else
+            puts "Done looking for results! #{Time.new.strftime("%S%L")}"
+            return message
           end
         end
         puts "Client - Result #{Time.new.strftime("%S%L")} #{message}"
@@ -136,9 +141,6 @@ class Client
           puts "Bad result message - ignoring #{message}"
           return
         end
-      rescue Timeout::Error
-        puts "Done looking for results! #{Time.new.strftime("%S%L")}"
-        return message
       rescue
         puts "Error reading result #{$!}"
       end
