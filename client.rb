@@ -60,6 +60,8 @@ class Client
   end
 
   def store_order_result(msg)
+    del = 11.chr.to_s << 28.chr.to_s
+    msg.delete!(del)
     @dbh.query("insert into interface_incomings(interface_id, data ,created_at) values
                  (#{@interface_id}, '#{msg}', '#{Time.new.utc}')")
   end
@@ -68,8 +70,8 @@ class Client
     results = nil
     begin
       results = send_msg(vals['data'])
-      @dbh.query("insert into interface_logs(req_id, ancillary_id, data) values
-                 ('#{vals['req_id']}', #{vals['ancillary_id']}, '#{vals['data']}')")
+      @dbh.query("insert into interface_logs(req_id, ancillary_id, data ,created_at) values
+                 ('#{vals['req_id']}', #{vals['ancillary_id']}, '#{vals['data']}', '#{Time.new.utc}')")
       @dbh.query("delete from interface_outgoings where req_id = '#{vals['req_id']}'")
     rescue
       puts "Error transmit #{$!}"
@@ -104,7 +106,7 @@ class Client
             puts "Client get #{read.length} #{Time.new.strftime("%S%L")}"
             #return result to let know it was just processed
             return receive_results(read) if read.index('OBX')
-            break if read.length > 1
+            break
           else
             puts "No server response! Timed out after #{ACK_TIMEOUT} secs"
           end

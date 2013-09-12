@@ -9,11 +9,11 @@ PORT=2000
 puts "Vista Labs Server Starting"
 
 
-def self.send_results(client)
-  2.times do
+def self.send_results(client, rec)
+  rec.each do |input|
     puts "Server - Sending result #{Time.new.strftime("%S%L")}"
-    obx = "OBX|1|NM|HostCode^Patient weight||175||||||F|||" << Time.new.strftime("%Y%m%d%H%M%S%L") <<"||\n"
-    client.puts(obx) # Send order result
+    out = input.gsub('OBX|', "OBX|1|NM|HostCode^Patient weight||175||||||F|||" << Time.new.strftime("%Y%m%d%H%M%S%L") <<"||")
+    client.puts(out) # Send order result
     input = client.recv(2048)
     puts "Bad result ack #{input}" unless input.index('MSA|AA')
   end
@@ -22,9 +22,9 @@ end
 # Author: Claudio Mendoza
 server = TCPServer.open(PORT) # Socket to listen on port 2000
 client = server.accept # Wait for a client to connect
-count = 3
+rec = []
+input = ""
 loop do # Servers run forever
-  input = ""
   begin
     Timeout::timeout(20) do
       input = client.recv(2048)
@@ -33,15 +33,15 @@ loop do # Servers run forever
     if input.index('OBR')
       client.puts(ACK) # Send the time to the client
       puts "Server - sending ACK #{ACK.length} #{Time.new.strftime("%S%L")}"
+      rec << input
     else
       puts "Bad message #{input}"
       raise "Read 0 chars" if input.length == 0
     end
   rescue Timeout::Error
-    count += 1
-    if count > 3
-      send_results(client)
-      count = 0
+    unless rec.empty?
+      send_results(client, rec)
+      rec = []
     end
   rescue
     puts "Error in server #{$!}"

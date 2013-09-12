@@ -60,33 +60,23 @@ class WebApi
         insurance: { name: 'United Health', member_id: '234567' },
         visit: { room: '213', facility_id: 'location1' }
     }
-    response = Net::HTTP.post_form(uri, data: data.to_json, access_token: acc_tok, ancillary_id: ancillary_id)
-
-    result = JSON.parse(response.body)
-=begin
-# Full control
-    http = Net::HTTP.new(uri.host, uri.port)
-
-    request = Net::HTTP::Post.new(uri.request_uri)
-    request.set_form_data({ "q" => "My query", "per_page" => "50" })
-
-    response = http.request(request)
-=end
+    response = Net::HTTP.post_form(uri, data: data.to_json, access_token: acc_tok,
+                                   ancillary_id: ancillary_id)
+    JSON.parse(response.body)
   end
 
 
-  def self.get_order(url)
-    uri = URI.parse(url)
+  def self.order_result(acc_tok, req_id)
+    uri = URI.parse("http://127.0.0.1:3000/orders/#{req_id}")
+    params = { access_token: acc_tok }
+    uri.query = URI.encode_www_form(params)
+    response = Net::HTTP.get_response(uri)
+    #http = Net::HTTP.new(uri.host, uri.port)
+    #request = Net::HTTP::Get.new(uri.request_uri)
 
-    http = Net::HTTP.new(uri.host, uri.port)
-    request = Net::HTTP::Get.new(uri.request_uri)
+    #response = http.request(request)
 
-    response = http.request(request)
-
-    response.code # => 301
-    response.body # => The body (HTML, XML, blob, whatever)
-                  # Headers are lowercased
-    response["cache-control"] # => public, max-age=2592000
+    JSON.parse(response.body)
   end
 
 
