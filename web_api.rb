@@ -76,7 +76,7 @@ class WebApi
 
     #response = http.request(request)
 
-    JSON.parse(response.body)
+    response.body
   end
 
 

@@ -1,60 +1,69 @@
 require 'socket' # Get sockets from stdlib
+require './database'
+require 'json'
 class Server
 # Copyright Vidaguard 2013
 # Author: Claudio Mendoza
+  RSLTS_TIMEOUT = 20
   ACK = "MSH|^~\&|Orchard|Lab|HIS|hostSystem|20030917141001||ACK|4690|P|2.3
 MSA|AA|dfx20030917141003|message text\n"
 
+  def self.receive_results(interface, port)
+    server = Server.new(interface, port)
+    server.start
+  end
 
-  def self.start(port)
-    puts "Vista Labs Server Starting"
-    begin
-      server = TCPServer.open(port) # Socket to listen on port 2000
-      client = server.accept # Wait for a client to connect
-      count = 0
-      loop do # Servers run forever
-        input = client.recv(2048)
-#        puts "server get #{input.length}"
-        if input.index('MSH')
-          client.puts(ACK) # Send the time to the client
-#          puts "server sending #{ACK.length}"
-        else
-          puts "Bad message #{input.length} - first char #{input[0].ord}"
-        end
-        count += 1
-        if count > 5
-          2.times do
-            obx = "OBX|1|NM|HostCode^Patient weight||175||||||F|||" << Time.new.strftime("%Y%m%d%H%M%S%L") <<"||\n"
-            client.puts(obx) # Send order result
-            input = client.recv(2048)
-            raise "No order ack" unless input.index('MSA|AA')
+  def initialize(interface, port)
+    @interface = interface
+    @port = port
+  end
+
+  def start
+    @dbh = Database.connect
+    rows = @dbh.query("select * from interfaces where name = '#{@interface}'")
+    rows.each_hash do |rv| #should be only one row
+      @interface_id = rv['id']
+    end
+
+    loop do
+      server = TCPServer.open(@port) # Socket to listen on port
+      puts "Accepting results in port #{@port}..."
+      loop do
+        client = server.accept # Wait for a client to connect
+        message = []
+        begin
+          ready = IO.select([client], nil, nil, RSLTS_TIMEOUT)
+          if ready
+            loop do
+              inp = client.gets
+              break if inp.ord == 28
+              message << inp.delete("\n") unless inp.ord == 11
+            end
+          else
+            break
           end
-          count = 0
+          puts "Client - Result #{Time.new.strftime("%S%L")} #{message}"
+          if message.length > 1
+            store_order_result(message)
+            ack = ACK.gsub('_time_', Time.new.strftime("%S%L"))
+            out = 11.chr.to_s << ack << 28.chr.to_s << "\r\n"
+            client.puts(out)
+          else
+            puts "Bad result message - ignoring #{message}"
+            break
+          end
+        rescue
+          puts "Error reading result #{$!}"
+          break
         end
+        client.close
       end
-    rescue
-      puts "Error in server #{$!}"
-      client.close # Disconnect from the client
+      server.close
     end
   end
 
-  def self.test(port)
-    puts "Vista Labs Server Starting"
-    server = TCPServer.open(port) # Socket to listen on port 2000
-    run = 1
-    client = server.accept # Wait for a client to connect
-    client.puts(Time.now.ctime) # Send the time to the client
-    loop { # Servers run forever
-      input = client.gets.chop
-      client.puts "You said: #{ input }"
-      puts input + run.to_s
-      if input == 'stop'
-        client.puts "Closing the connection. Bye! #{input}"
-        client.close # Disconnect from the client
-        client = server.accept # Wait for a client to connect
-        client.puts(Time.now.ctime) # Send the time to the client
-        run+=1
-      end
-    }
+  def store_order_result(msg)
+    @dbh.query("insert into interface_incomings(interface_id, data ,created_at) values
+                 (#{@interface_id}, '#{JSON.dump(msg)}', '#{Time.new.utc}')")
   end
 end

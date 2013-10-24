@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="DataSourceManagerImpl" format="xml" hash="18833573">
+  <component name="DataSourceManagerImpl" format="xml" hash="1415904389">
     <data-source source="LOCAL" name="Data Source" uuid="8439b67d-79fb-4a86-b13d-f6bd6dee8519">
+      <driver-ref>mysql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.mysql.jdbc.Driver</jdbc-driver>
       <jdbc-url>jdbc:mysql://localhost/careflow</jdbc-url>
       <user-name>root</user-name>
-      <libraries>
-        <library>
-          <url>jar://$USER_HOME$/RubyMine-6.0/lib/mysql-connector-java-5.1.26-bin.jar!/</url>
-        </library>
-        <library>
-          <url>file://$USER_HOME$/RubyMine-6.0/lib/mysql-connector-license.txt</url>
-        </library>
-      </libraries>
+      <libraries />
     </data-source>
   </component>
 </project>
