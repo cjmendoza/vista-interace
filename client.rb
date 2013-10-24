@@ -11,42 +11,40 @@ class Client
 # Author: Claudio Mendoza
 # Copyright Vidaguard 2013
 
-  def self.send_orders(name, send_min)
-    Client.new(name, send_min).start
+  def self.send_orders(name, host, port, send_min)
+    Client.new(name, host, port, send_min).start
   end
 
-  def initialize(name, send_min = 10)
+  def initialize(name, host, port, send_min = 10)
     @name = name
+    @host = host
+    @port = port
     @send_min = send_min
   end
 
   def start
     puts 'Vidaguard Client Starting...'
-    @host = '10.11.2.11' #rv['conn_addr']
-    @port = 37055 #rv['conn_port']
-    connect_to_socket
+
     @dbh = Database.connect
 
     #Start receive process
     #Start the process to read from outgoing orders to send
     rows = @dbh.query("select * from interfaces where name = '#{@name}'")
     rows.each_hash do |rv| #should be only one row
-
       @interface_id = rv['id']
-
-      loop do #this is main ongoing loop to gather messages to send.
-        inputs = @dbh.query("select * from interface_outgoings where interface_id = #{@interface_id}")
-        puts "Sending #{inputs.num_rows} orders"
-        results = nil
-        if inputs.num_rows > 0
-          inputs.each_hash do |vals|
-            results = transmit(vals)
-          end
+    end
+    loop do #this is main ongoing loop to gather messages to send.
+      inputs = @dbh.query("select * from interface_outgoings where interface_id = #{@interface_id}")
+      puts "Sending #{inputs.num_rows} orders"
+      results = nil
+      if inputs.num_rows > 0
+        inputs.each_hash do |vals|
+          results = transmit(vals)
         end
-        #wait
-        puts "Poll timeout #{POLL_TIMEOUT} seconds..."
-        sleep POLL_TIMEOUT
       end
+      #wait
+      puts "Poll timeout #{POLL_TIMEOUT} seconds..."
+      sleep POLL_TIMEOUT
     end
   ensure
     @sock.close
@@ -88,11 +86,6 @@ class Client
         puts "Client re-send #{re_send} - read = #{read} size: #{read.length}" if re_send > 0
         @sock.puts(out)
 
-        #segs = msg.split("\r")
-        #segs.each do |seg|
-        #  @sock.puts(seg)
-        #end
-        #@sock.puts(28.chr.to_s + '\r')
         puts "Client sent #{out.length} #{Time.new.strftime("%S%L")}"
 
         loop do

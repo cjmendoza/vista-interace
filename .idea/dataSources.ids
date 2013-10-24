@@ -1,20 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component name="dataSourceStorage">
-  <data-source source="LOCAL" name="Data Source" product="MySQL" version="5.1.63-0ubuntu0.11.04.1" jdbc-version="4.0" driver-name="MySQL Connector Java" driver-version="mysql-connector-java-5.1.26 ( Revision: ${bzr.revision-id} )" uuid="8439b67d-79fb-4a86-b13d-f6bd6dee8519">
-    <extra-name-characters>#@</extra-name-characters>
-    <identifier-quote-string>`</identifier-quote-string>
-    <synchronize>true</synchronize>
-    <jdbc-driver>com.mysql.jdbc.Driver</jdbc-driver>
-    <jdbc-url>jdbc:mysql://localhost/careflow</jdbc-url>
-    <user-name>root</user-name>
-    <libraries>
-      <library>
-        <url>jar://$USER_HOME$/RubyMine-6.0/lib/mysql-connector-java-5.1.26-bin.jar!/</url>
-      </library>
-      <library>
-        <url>file://$USER_HOME$/RubyMine-6.0/lib/mysql-connector-license.txt</url>
-      </library>
-    </libraries>
+  <data-source source="LOCAL" name="Data Source" uuid="8439b67d-79fb-4a86-b13d-f6bd6dee8519">
+    <database-info product="MySQL" version="5.1.63-0ubuntu0.11.04.1" jdbc-version="4.0" driver-name="MySQL Connector Java" driver-version="mysql-connector-java-5.1.26 ( Revision: ${bzr.revision-id} )">
+      <extra-name-characters>#@</extra-name-characters>
+      <identifier-quote-string>`</identifier-quote-string>
+    </database-info>
     <schema name="" catalog="careflow"/>
     <schema name="" catalog="drugs"/>
     <schema name="" catalog="information_schema"/>
