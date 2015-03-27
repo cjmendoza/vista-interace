@@ -2,6 +2,8 @@ require 'socket' # Get sockets from stdlib
 require './database'
 require 'timeout'
 require 'mysql'
+require 'logger'
+
 ACK = "MSH|^~\&|Vidaguard|Careflow1|Orchard|Lab|_time_||ACK|4690|P|2.3
 MSA|AA|_control_id_|_message_\n"
 ACK_TIMEOUT = 10
@@ -11,21 +13,28 @@ class Client
 # Author: Claudio Mendoza
 # Copyright Vidaguard 2013
 
-  def self.send_orders(name, host, port, send_min)
-    Client.new(name, host, port, send_min).start
+  def self.send_orders(name, host, port, send_min, debug = false)
+    Client.new(name, host, port, send_min, debug).start
   end
 
-  def initialize(name, host, port, send_min = 10)
+  def initialize(name, host, port, send_min = 10, debug)
     @name = name
     @host = host
     @port = port
     @send_min = send_min
+
+    if debug
+      @logger = Logger.new $stdout
+      @logger.level = Logger::DEBUG
+    else
+      @logger = Logger.new File.new('../orders.log', "a"), 'weekly'
+    end
   end
 
   def start
-    puts 'Vidaguard Client Starting...'
+    @logger.info "Vidaguard Client Starting...#{Time.now}"
 
-    @dbh = Database.connect
+    @dbh = Database.connect(@logger)
 
     #Start receive process
     #Start the process to read from outgoing orders to send
@@ -35,20 +44,20 @@ class Client
     end
     loop do #this is main ongoing loop to gather messages to send.
       inputs = @dbh.query("select * from interface_outgoings where interface_id = #{@interface_id}")
-      puts "Sending #{inputs.num_rows} orders"
       results = nil
       if inputs.num_rows > 0
+        @logger.info "Sending #{inputs.num_rows} orders"
         inputs.each_hash do |vals|
           results = transmit(vals)
         end
       end
       #wait
-      puts "Poll timeout #{POLL_TIMEOUT} seconds..."
+      @logger.debug "Waiting DB read poll timeout #{POLL_TIMEOUT} seconds..."
       sleep POLL_TIMEOUT
     end
   ensure
-    @sock.close
-    @dbh.close
+    @sock.close if @sock
+    @dbh.close if @dbh
     raise $!
   end
 
@@ -60,7 +69,7 @@ class Client
                  ('#{vals['req_id']}', #{vals['ancillary_id']}, '#{vals['data']}', '#{Time.new.utc}')")
       @dbh.query("delete from interface_outgoings where req_id = '#{vals['req_id']}'")
     rescue
-      puts "Error transmit #{$!}"
+      @logger.error "Error transmit #{$!}"
     end
     results
   end
@@ -69,9 +78,9 @@ class Client
     #socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, true)
     begin
       @sock = TCPSocket.new(@host, @port)
-      puts "#{Time.now} - Connected socket to host: #{@host} port: #{@port}"
+      @logger.info "#{Time.now} - Connected socket to host: #{@host} port: #{@port}"
     rescue
-      puts "#{Time.now} - Cannot connect-> #{$!} host: #{@host} port: #{@port} - retrying in #{re_try_secs} seconds"
+      @logger.warn "#{Time.now} - Cannot connect-> #{$!} host: #{@host} port: #{@port} - retrying in #{re_try_secs} seconds"
       sleep re_try_secs
       retry
     end
@@ -83,31 +92,31 @@ class Client
     out = 11.chr.to_s + msg + 28.chr.to_s + "\r"
     until read.index("MSA|AA") || re_send > 10
       begin
-        puts "Client re-send #{re_send} - read = #{read} size: #{read.length}" if re_send > 0
+        @logger.warn "Client re-send #{re_send} - read = #{read} size: #{read.length}" if re_send > 0
         @sock.puts(out)
 
-        puts "Client sent #{out.length} #{Time.new.strftime("%S%L")}"
+        @logger.debug "Client sent #{out.length} #{Time.new.strftime("%S%L")}"
 
         loop do
           ready = IO.select([@sock], nil, nil, ACK_TIMEOUT)
           if ready
             read = @sock.recv(2048)
-            puts "Client get #{read.length} #{Time.new.strftime("%S%L")}"
+            @logger.debug "Client get #{read.length} #{Time.new.strftime("%S%L")}"
             #return result to let know it was just processed
             return receive_results(read) if read.index('OBX')
             break
           else
-            puts "No server response! Timed out after #{ACK_TIMEOUT} secs"
+            @logger.warn "No server response! Timed out after #{ACK_TIMEOUT} secs"
           end
         end
 
       rescue
-        puts "Message send failed - connecting again (send_msg) #{$!}"
+        @logger.error "Message send failed - connecting again (send_msg) #{$!}"
         connect_to_socket
         re_send += 1
       end
     end
-    #puts "Exiting send"
+    @logger.info "Exiting send #{Time.now}"
   end
 
 end

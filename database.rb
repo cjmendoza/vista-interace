@@ -1,18 +1,18 @@
+require 'mysql'
 class Database
   # Copyright Vidaguard 2013class Database
   # Author: Claudio Mendoza
 
 
-  def self.connect
+  def self.connect(logger)
     begin
       # connect to the MySQL server
-      dbh = Mysql.new('localhost', 'root', '', 'careflow')
+      dbh = Mysql.new('localhost', 'root', 'P@77w0rd!', 'careflow')
+#      dbh = Mysql.new('localhost', 'root', '', 'careflow')
     rescue Mysql::Error => e
-      puts "An error occurred"
-      puts "Error code:    #{e.errno}"
-      puts "Error message: #{e.error}"
+      logger.error "An error occurred connecting to database, Error code: #{e.errno} Error message: #{e.error}"
     end
-    puts 'Connected to db'
+    logger.info 'Connected to db'
     dbh
   end
 end
